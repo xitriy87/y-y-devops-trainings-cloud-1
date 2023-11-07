@@ -9,7 +9,7 @@ jobs:
       - name: Login in ct.yandex
         uses: docker/login-action@v3
         with:
-          username: aim
+          username: iam
           password: ${{ secrets.YANDEX_CR_TOKEN }}
           registry: cr.yandex
       - name: set up docker buildx
