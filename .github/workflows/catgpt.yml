@@ -13,10 +13,11 @@ jobs:
           password: ${{ secrets.YANDEX_CR_TOKEN }}
           registry: cr.yandex
       - name: set up docker buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
+          provenance: false
           context: catgpt
           file: ./Dockerfile
           push : true
