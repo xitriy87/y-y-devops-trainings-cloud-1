@@ -21,12 +21,12 @@ resource "yandex_vpc_subnet" "foo" {
   v4_cidr_blocks = ["10.5.0.0/24"]
 }
 
-resource "yandex_container_registry" "registry1" {
-  name = "registry1"
-}
+##resource "yandex_container_registry" "registry1" {
+#  name = "registry1"
+#}
 
 locals {
-  folder_id = "<INSERT YOUR FOLDER ID>"
+  folder_id = "b1gfku53i9bu5vo7dghr"
   service-accounts = toset([
     "catgpt-sa",
   ])
