@@ -18,6 +18,6 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: catgpt
-          file: ./DockerFile
+          file: ./Dockerfile
           push : true
           tags: cr.yandex/crpn09p0l2vru6gdd3gg/catgpt:v1
