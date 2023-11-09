@@ -5,3 +5,13 @@ services:
     image: "cr.yandex/crpf0t8174hc6c7l5r4m/catgpt:v1"
     restart : always
     network_mode: "host"
+  ua:
+    container_name: ua
+    image: "cr.yandex/yc/unified-agent"
+    environment:
+      PROC_DIRECTORY: "/ua_proc"
+      FOLDER_ID: "b1gfku53i9bu5vo7dghr"
+    volumes:
+      - /proc:/ua_proc
+      - /home/ubuntu/ua.config:/etc/yandex/unified_agent/conf.d/config.yml
+    network_mode: "host"
