@@ -25,17 +25,28 @@ locals {
 
 resource "yandex_vpc_network" "foo" {}
 
-resource "yandex_vpc_subnet" "foo1" {
+resource "yandex_vpc_subnet" "foo" {
   zone           = "ru-central1-a"
   network_id     = yandex_vpc_network.foo.id
   v4_cidr_blocks = ["10.5.0.0/24"]
+  route_table_id = yandex_vpc_route_table.catgpt-rt.id
 }
 
-#resource "yandex_vpc_subnet" "foo2" {
-#  zone           = "ru-central1-a"
-#  network_id     = yandex_vpc_network.foo.id
-#  v4_cidr_blocks = ["10.5.1.0/24"]
-#}
+resource "yandex_vpc_gateway" "nat_gateway" {
+  name = "catgpt-gateway"
+  shared_egress_gateway {}
+}
+
+resource "yandex_vpc_route_table" "catgpt-rt" {
+  name       = "catgpt-rt"
+  network_id = yandex_vpc_network.foo.id
+
+  static_route {
+    destination_prefix = "0.0.0.0/0"
+    gateway_id         = yandex_vpc_gateway.nat_gateway.id
+  }
+}
+
 
 ##resource "yandex_container_registry" "registry1" {
 #  name = "registry1"
@@ -55,6 +66,28 @@ resource "yandex_resourcemanager_folder_iam_member" "catgpt-roles" {
 data "yandex_compute_image" "coi" {
   family = "container-optimized-image"
 }
+
+resource "yandex_vpc_security_group" "test-sg" {
+  name = "test-sg"
+  description = "sg for catgpt instance"
+  network_id = "${yandex_vpc_network.foo.id}"
+
+  ingress {
+    protocol = "TCP"
+    v4_cidr_blocks = ["10.5.0.0/24"]
+    from_port = 0
+    to_port = 65535
+  }
+
+  egress {
+    protocol = "TCP"
+    v4_cidr_blocks = ["0.0.0.0/0"]
+    from_port = 0
+    to_port = 65535
+  }
+}
+
+
 resource "yandex_compute_instance_group" "catgpt-group" {
     name = "catgpt-group"
     service_account_id = yandex_iam_service_account.service-accounts["alexeit-catgpt-sa"].id
@@ -74,9 +107,9 @@ resource "yandex_compute_instance_group" "catgpt-group" {
         preemptible = true
       }
       network_interface {
-        network_id     = "${yandex_vpc_network.foo.id}"
-        subnet_ids = ["${yandex_vpc_subnet.foo1.id}"]
-        nat = true
+        network_id     = yandex_vpc_network.foo.id
+        subnet_ids = [yandex_vpc_subnet.foo.id]
+        nat = false
       }
       boot_disk {
         initialize_params {
@@ -110,11 +143,11 @@ resource "yandex_compute_instance_group" "catgpt-group" {
 resource "yandex_lb_target_group" "catgpt-tg" {
   name      = "catgpt-tg"
   target {
-    subnet_id = "${yandex_vpc_subnet.foo1.id}"
+    subnet_id = "${yandex_vpc_subnet.foo.id}"
     address   = "${yandex_compute_instance_group.catgpt-group.instances[0].network_interface[0].ip_address}"
   }
   target {
-    subnet_id = "${yandex_vpc_subnet.foo1.id}"
+    subnet_id = "${yandex_vpc_subnet.foo.id}"
     address   = "${yandex_compute_instance_group.catgpt-group.instances[1].network_interface[0].ip_address}"
   }
 }
@@ -127,12 +160,11 @@ resource "yandex_lb_network_load_balancer" "catgpt-lb" {
     name = "catgpt"
     port = 8080
     external_address_spec {
-#      subnet_id = "${yandex_vpc_subnet.foo1.id}"
       ip_version = "ipv4"
     }
   }
   attached_target_group {
-    target_group_id = "${yandex_lb_target_group.catgpt-tg.id}"
+    target_group_id = yandex_lb_target_group.catgpt-tg.id
     healthcheck {
       name = "http"
         http_options {
@@ -146,3 +178,4 @@ resource "yandex_lb_network_load_balancer" "catgpt-lb" {
 output "instances_ip_addr" {
   value = ["${yandex_compute_instance_group.catgpt-group.instances[0].network_interface[0].ip_address}", "${yandex_compute_instance_group.catgpt-group.instances[1].network_interface[0].ip_address}"]
 }
+
